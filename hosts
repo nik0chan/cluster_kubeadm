@@ -1,7 +1,7 @@
-master ansible_host=34.65.144.134
-worker-1 ansible_host=34.65.150.55
+worker-1 ansible_host=34.65.144.134
+nfs-server ansible_host=34.65.150.55
 worker-2 ansible_host=34.65.185.0
-nfs-server ansible_host=34.65.56.61
+master ansible_host=34.65.56.61
 
 [docker-masters] 
 master

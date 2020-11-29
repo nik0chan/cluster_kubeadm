@@ -1,0 +1,30 @@
+[1;35m[WARNING]: Invalid characters were found in group names but not replaced, use -vvvv to see details[0m
+[0;31mERROR! We were unable to read either as JSON nor YAML, these are the errors we got from each:[0m
+[0;31mJSON: Expecting value: line 1 column 1 (char 0)[0m
+[0;31m[0m
+[0;31mSyntax Error while loading YAML.[0m
+[0;31m  found character that cannot start any token[0m
+[0;31m[0m
+[0;31mThe error appears to be in '/home/nik0chan/Documents/cluster_kubeadm/roles/docker-master/tasks/main.yml': line 138, column 1, but may[0m
+[0;31mbe elsewhere in the file depending on the exact syntax problem.[0m
+[0;31m[0m
+[0;31mThe offending line appears to be:[0m
+[0;31m[0m
+[0;31m    mode: '0600'[0m
+[0;31m[0m
+[0;31m^ here[0m
+[0;31mThere appears to be a tab character at the start of the line.[0m
+[0;31m[0m
+[0;31mYAML does not use tabs for formatting. Tabs should be replaced with spaces.[0m
+[0;31m[0m
+[0;31mFor example:[0m
+[0;31m    - name: update tooling[0m
+[0;31m      vars:[0m
+[0;31m        version: 1.2.3[0m
+[0;31m#    ^--- there is a tab there.[0m
+[0;31m[0m
+[0;31mShould be written as:[0m
+[0;31m    - name: update tooling[0m
+[0;31m      vars:[0m
+[0;31m        version: 1.2.3[0m
+[0;31m# ^--- all spaces here.[0m

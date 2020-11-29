@@ -3,6 +3,10 @@
   package_facts: 
     manager: "auto"
 
+- name: Set system hostname
+  hostname:
+    name: master
+
 - name: Ensure module br_netfilter is present
   modprobe:
     name: br_netfilter
@@ -101,3 +105,37 @@
       - kubelet
     state: latest
 
+#- name: Install Docker
+#  shell: curl https://get.docker.com |sudo bash
+
+- name: Start docker service
+  service:
+    name: docker
+    state: started
+
+- name: Disable SWAP 
+  shell: |
+    swapoff -a
+
+- name: Disable SWAP in fstab
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+
+- name: Kubernetes setup
+  file:
+    path: /root/.kube
+    state: directory
+
+- name: Copy file with owner and permissions
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Deploy cilium network driver
+  command: /usr/bin/local/kubectl -f {{network_driver}}
