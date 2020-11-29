@@ -1,0 +1,31 @@
+---
+- hosts: all
+  gather_facts: no
+  tasks:
+  - name: Check Debian based OS 
+    raw: test -e /etc/debian_version
+    changed_when: false
+    failed_when: false
+    register: debian_based 
+   
+  - name: Check	RedHat based OS	
+    raw: test -e /etc/redhat-release
+    changed_when: false 
+    failed_when: false 
+    register: redhat_based
+
+  - name: Install Python on debian based
+    raw: 'test -e /usr/bin/python3 || (apt-get update && apt-get install -y python)'
+    when: debian_based.rc == 0 
+
+  - name: Install Python on redhat based
+    raw: 'test -e /usr/bin/python3 || (yum -y update && yum install -y python3)'
+    when: redhat_based.rc == 0
+
+  - name: Set python3 as default 
+    raw: 'test -e /usr/bin/python || (ln -s /usr/bin/python3 /usr/bin/python)'
+
+#    register: command_result
+#  - name: debug
+#    debug:
+#      var: command_result

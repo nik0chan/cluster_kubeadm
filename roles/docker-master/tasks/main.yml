@@ -1,0 +1,103 @@
+---
+- name: Check packages installed on system 
+  package_facts: 
+    manager: "auto"
+
+- name: Ensure module br_netfilter is present
+  modprobe:
+    name: br_netfilter
+    state: present
+
+- name: Create /etc/sysctl.d/k8s.conf
+  file:
+    path: /etc/sysctl.d/k8s.conf
+    owner: root
+    group: root
+    mode: '0644'
+    state: touch
+
+#- name: Let iptables see bridged traffic
+#  blockinfile:
+#    dest: /etc/sysctl.d/k8s.conf
+#    state: present
+#    block: |
+#      net.bridge.bridge-nf-call-ip6tables = 1'
+#      net.bridge.bridge-nf-call-iptables = 1'
+
+#- name: Reload sysctl  
+#  command: /usr/sbin/sysctl --system 
+
+- name: Ensure lines in sysctl 
+  sysctl:
+    name: net.bridge.bridge-nf-call-ip6tables
+    value: 1
+    sysctl_set: yes
+    reload: yes
+- name: Ensure lines in sysctl
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: 1
+    sysctl_set: yes
+    reload: yes
+
+# Configurar firewall !!!!!
+
+- name: Get kubectl stable release
+  get_url: 
+    url: https://storage.googleapis.com/kubernetes-release/release/stable.txt
+    dest: /tmp/kubectl_version
+ 
+- name: Read variable
+  command: cat /tmp/kubectl_version
+  register: kubectl_version 
+
+- name: Install kubectl 
+  get_url:
+    url: "https://storage.googleapis.com/kubernetes-release/release/{{kubectl_version.stdout}}/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl 
+    mode: 0755
+    owner: root 
+    group: root
+
+- name: Add repository key (Debian) 
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Add repository (Debian) 
+  blockinfile:
+    dest: /etc/apt/sources.list.d/kubernetes.list
+    create: yes
+    block: |
+      deb https://apt.kubernetes.io/ kubernetes-xenial main
+  when: ansible_os_family == "Debian"
+
+- name: Add repository key (RedHat)
+  apt_key:
+    url: https://packages.cloud.google.com/yum/doc/yum-key.gpg
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Add repository (Redhat)
+  blockinfile:
+    dest: /etc/yum.repos.d/kubernetes.repo
+    block: |
+      [kubernetes]
+      name=Kubernetes
+      baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+      enabled=1
+      gpgcheck=1
+      repo_gpgcheck=1
+      gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      exclude=kubelet kubeadm kubectl
+  when: ansible_os_family == "RedHat"
+
+- name: Install Kubeadm packages
+  package: 
+    name:
+      - kubeadm
+      - kubectl
+      - kubelet
+    state: latest
+

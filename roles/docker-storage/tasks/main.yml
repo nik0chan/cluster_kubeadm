@@ -1,0 +1,59 @@
+---
+- name: Check packages installed on system 
+  package_facts: 
+    manager: "auto"
+
+- name: Install NFS mount utility
+  package:
+    name: nfs-utils
+    state: latest
+  when: 
+    - ansible_os_family == "RedHat" 
+    - "'nfs-utils' not in ansible_facts.packages"
+
+- name: Install NFS mount utility
+  package:
+    pkg: nfs-kernel-server
+    state: present
+  when: 
+    - ansible_os_family == "Debian"
+
+- name: Create NFS exports file 
+  file: 
+    path: /etc/exports
+    owner: root
+    group: root
+    mode: '0600' 
+    state: touch 
+
+
+- name: Create NFS exports folder 
+  file: 
+    path: /srv/kubernetes
+    owner: root
+    group: root
+    mode: '0755' 
+    recurse: yes
+    state: directory 
+
+
+- name: Setup NFS share 
+  lineinfile:
+    dest: /etc/exports 
+    line: "/srv/kubernetes	{{NFS_NETWORK}}(rw,sync,no_subtree_check,sync)"    
+    state: present 
+
+
+- name: Start NFS Server [Debian based OS]
+  service:
+    name: nfs-kernel-server
+    state: restarted
+    enabled: yes
+  when: ansible_os_family == "Debian" 
+
+- name: Start NFS Server [Redhat based OS]
+  service: 
+    name: nfs-server
+    state: restarted
+    enabled: yes
+  when: ansible_os_family == "RedHat"

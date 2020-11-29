@@ -1,0 +1,7 @@
+- hosts: docker-storage
+  vars_prompt: 
+  - name: "NFS_NETWORK" 
+    private: no
+
+  roles:
+  - role: docker-storage
