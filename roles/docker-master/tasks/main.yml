@@ -31,6 +31,14 @@
 #- name: Reload sysctl  
 #  command: /usr/sbin/sysctl --system 
 
+- name: Check for Centos tasks
+  import_tasks: tasks/debian.yml 
+  when: (ansible_facts['distribution'] == "RedHat")
+
+- name: Check for Debian tasks
+  import_tasks: tasks/debian.yml 
+  when: (ansible_facts['distribution'] == "Debian")
+
 - name: Ensure lines in sysctl 
   sysctl:
     name: net.bridge.bridge-nf-call-ip6tables
@@ -62,40 +70,6 @@
     mode: 0755
     owner: root 
     group: root
-
-- name: Add repository key (Debian) 
-  apt_key:
-    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
-    state: present
-  when: ansible_os_family == "Debian"
-
-- name: Add repository (Debian) 
-  blockinfile:
-    dest: /etc/apt/sources.list.d/kubernetes.list
-    create: yes
-    block: |
-      deb https://apt.kubernetes.io/ kubernetes-xenial main
-  when: ansible_os_family == "Debian"
-
-- name: Add repository key (RedHat)
-  apt_key:
-    url: https://packages.cloud.google.com/yum/doc/yum-key.gpg
-    state: present
-  when: ansible_os_family == "RedHat"
-
-- name: Add repository (Redhat)
-  blockinfile:
-    dest: /etc/yum.repos.d/kubernetes.repo
-    block: |
-      [kubernetes]
-      name=Kubernetes
-      baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
-      enabled=1
-      gpgcheck=1
-      repo_gpgcheck=1
-      gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-      exclude=kubelet kubeadm kubectl
-  when: ansible_os_family == "RedHat"
 
 - name: Install Kubeadm packages
   package: 
@@ -138,4 +112,5 @@
     mode: '0600'
 
 - name: Deploy cilium network driver
-  command: /usr/bin/local/kubectl -f {{network_driver}}
+  command: /usr/bin/kubectl create -f {{network_driver}}
+

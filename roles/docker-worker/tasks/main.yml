@@ -1,55 +1,105 @@
 ---
-- name: Install Git utility 
-  package: name=git state=latest 
+- name: Check packages installed on system 
+  package_facts: 
+    manager: "auto"
 
-- name: Install NFS mount utility
-  package:
-    name: nfs-utils
-    state: latest
-  when: ansible_os_family == "RedHat"
+- name: Set system hostname
+  hostname:
+    name: worker-{{ansible_machine_id}}
 
-- name: Install NFS mount utility
-  package:
-    pkg: nfs-common
+- name: Ensure module br_netfilter is present
+  modprobe:
+    name: br_netfilter
     state: present
-  when: ansible_os_family == "Debian"
 
-- name: Create NFS exports folder 
-  file: 
-    path: /srv/docker
+- name: Create /etc/sysctl.d/k8s.conf
+  file:
+    path: /etc/sysctl.d/k8s.conf
     owner: root
     group: root
-    mode: '0755' 
-    recurse: yes
-    state: directory 
+    mode: '0644'
+    state: touch
 
-- name: Mount NFS share
-  mount:
-    fstype: nfs
-    opts: "nfsvers=3,_netdev,soft,intr"
-    src: "{{NFS_SERVER}}:/srv/docker"
-    path: "/srv/docker"
-    state: mounted
+- name: Check for Centos tasks
+  import_tasks: tasks/debian.yml 
+  when: (ansible_facts['distribution'] == "RedHat")
 
-- name: Add mountpoint on fstab 
-  lineinfile:
-    dest: /etc/fstab 
-    line: "{{NFS_SERVER}}:/srv/docker	/srv/docker	nfs	defaults,nfsvers=3,_netdev,soft,intr	0 0"    
-    state: present
+- name: Check for Debian tasks
+  import_tasks: tasks/debian.yml 
+  when: (ansible_facts['distribution'] == "Debian")
 
-- name: Install Docker 
+- name: Ensure lines in sysctl 
+  sysctl:
+    name: net.bridge.bridge-nf-call-ip6tables
+    value: 1
+    sysctl_set: yes
+    reload: yes
+- name: Ensure lines in sysctl
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: 1
+    sysctl_set: yes
+    reload: yes
+
+# Configurar firewall !!!!!
+
+- name: Get kubectl stable release
+  get_url: 
+    url: https://storage.googleapis.com/kubernetes-release/release/stable.txt
+    dest: /tmp/kubectl_version
+ 
+- name: Read variable
+  command: cat /tmp/kubectl_version
+  register: kubectl_version 
+
+- name: Install kubectl 
+  get_url:
+    url: "https://storage.googleapis.com/kubernetes-release/release/{{kubectl_version.stdout}}/bin/linux/amd64/kubectl"
+    dest: /usr/local/bin/kubectl 
+    mode: 0755
+    owner: root 
+    group: root
+
+- name: Install Kubeadm packages
+  package: 
+    name:
+      - kubeadm
+      - kubectl
+      - kubelet
+    state: latest
+
+- name: Install Docker
   shell: curl https://get.docker.com |sudo bash
 
-- name: Start docker service 
-  service: 
+- name: Start docker service
+  service:
     name: docker
     state: started
 
-- name: Check that the swarm is alive
-  stat:
-    path: /srv/docker/join_swarm.sh
-  register: docker_swarm
+- name: Disable SWAP 
+  shell: |
+    swapoff -a
 
-- name: Join Docker swarm 
-  command: "/srv/docker/join_swarm.sh"
-  when: docker_swarm.stat.exists
+- name: Disable SWAP in fstab
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+
+- name: Kubernetes setup
+  file:
+    path: /root/.kube
+    state: directory
+
+- name: Copy file with owner and permissions
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Deploy cilium network driver
+  command: /usr/bin/kubectl create -f {{network_driver}}
+
